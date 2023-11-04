@@ -39,7 +39,7 @@ namespace AutoMigrations.Extensions
             opts = modelDiffer.GetDifferences(codeModel, finaMode);
 
             //migrate
-            Migrationing(context, opts);
+            Migrating(context, opts);
 
             return true;
         }
@@ -49,7 +49,7 @@ namespace AutoMigrations.Extensions
         /// </summary>
         /// <param name="operations"></param>
         /// <param name="context"></param>
-        private static void Migrationing(
+        private static void Migrating(
             DbContext context,
             IReadOnlyList<MigrationOperation> operations
         )
@@ -79,10 +79,20 @@ namespace AutoMigrations.Extensions
             //other migrate
             if (migrations.Count > 0)
             {
+#if NET6_0_OR_GREATER
+
+                IModel mode = context.Database.GetService<IDesignTimeModel>().Model;
+
+#elif NETSTANDARD2_0
+
+                IModel mode = context.Model;
+
+#endif
+
                 //generate sql scripts
                 var commandTexts = context.Database
                     .GetService<IMigrationsSqlGenerator>()
-                    .Generate(migrations, context.Model)
+                    .Generate(migrations, mode)
                     .Select(p => p.CommandText)
                     .ToArray();
 

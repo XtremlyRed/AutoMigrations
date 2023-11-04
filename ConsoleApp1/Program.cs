@@ -24,14 +24,16 @@ namespace ConsoleApp1
 
             services.AddDbContextPool<Program>(
                 options =>
-                    options.UseMySql(
-                        "Data Source=127.0.0.1;Port=3306;Database=Program;User ID=root;Password=myroot;Charset=utf8; SslMode=none;Min pool size=1",
-#if !NET48
-                        ServerVersion.Create(
-                            new Version(),
-                            Pomelo.EntityFrameworkCore.MySql.Infrastructure.ServerType.MySql
-                        ),
-#endif
+                    options.UseSqlite(
+                        $"Data Source={Path.Combine(Environment.CurrentDirectory, "sqlite.db")}",
+                        //                    options.UseMySql(
+                        //                        "Data Source=127.0.0.1;Port=3306;Database=Program;User ID=root;Password=myroot;Charset=utf8; SslMode=none;Min pool size=1",
+                        //#if !NET48
+                        //                        ServerVersion.Create(
+                        //                            new Version(),
+                        //                            Pomelo.EntityFrameworkCore.MySql.Infrastructure.ServerType.MySql
+                        //                        ),
+                        //#endif
 
                         b => b.MigrationsAssembly(assembly.GetName().Name)
                     ),
@@ -59,6 +61,14 @@ namespace ConsoleApp1
                 modelBuilder.Model.AddEntityType(typeof(TestModel));
             }
 
+            modelBuilder.Entity<TestModel>(b =>
+            {
+                b.ToTable("TestModel");
+                b.HasKey(e => e.Id);
+                b.Property(e => e.Id).ValueGeneratedOnAdd();
+                b.Property(e => e.CreateTime222).IsRequired();
+            });
+
             base.OnModelCreating(modelBuilder);
         }
 
@@ -70,6 +80,9 @@ namespace ConsoleApp1
     {
         [Key]
         public int Id { get; set; }
+
+        public DateTime CreateTime222 { get; set; } = DateTime.Now;
+
         public DateTime CreateTime { get; set; } = DateTime.Now;
         public DateTime CreateTime1 { get; set; } = DateTime.Now;
     }

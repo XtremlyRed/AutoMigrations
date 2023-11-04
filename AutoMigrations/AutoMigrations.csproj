@@ -7,8 +7,8 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Version>0.0.0.1-pre</Version>
-		<AssemblyVersion>0.0.0.1</AssemblyVersion>
+		<Version>0.0.0.02-pre</Version>
+		<AssemblyVersion>0.0.0.2</AssemblyVersion>
 		<LangVersion>11.0</LangVersion>
 		<PackageProjectUrl>https://github.com/xtremlyred/automigrations</PackageProjectUrl>
 	</PropertyGroup>

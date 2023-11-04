@@ -8,7 +8,7 @@ namespace AutoMigrations.Extensions
 {
     internal static class Extensions
     {
-        static ConcurrentDictionary<string, object> autoMigrateStorages = new();
+        static ConcurrentDictionary<object, object> autoMigrateStorages = new();
 
         public static void BindVerify(this DbContext context, string autoMigrateName)
         {

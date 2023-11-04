@@ -15,26 +15,31 @@ namespace AutoMigrations.Extensions
     internal static class SnapshotExtensions
     {
         static bool compilationAcceleratorCompleted;
+        static bool isRunning;
 
         public static void CompilationAccelerator()
         {
-            if (compilationAcceleratorCompleted is false)
+            if (compilationAcceleratorCompleted is true || isRunning is true)
             {
-                ThreadPool.QueueUserWorkItem(
-                    (o) =>
-                    {
-                        var stream = RoslynCompile.Compile(
-                            "using System;namespace AutoMigrations"
-                                + $"{Environment.TickCount}"
-                                + "{ internal class Accelerator{}}"
-                        );
-
-                        stream?.Dispose();
-
-                        compilationAcceleratorCompleted = true;
-                    }
-                );
+                return;
             }
+
+            isRunning = true;
+
+            ThreadPool.QueueUserWorkItem(
+                (o) =>
+                {
+                    var stream = RoslynCompile.Compile(
+                        "using System;namespace AutoMigrations"
+                            + $"{Environment.TickCount}"
+                            + "{ internal class Accelerator{}}"
+                    );
+
+                    stream?.Dispose();
+
+                    compilationAcceleratorCompleted = true;
+                }
+            );
         }
 
         public static ModelSnapshot? CreateSnapshot(
@@ -44,12 +49,6 @@ namespace AutoMigrations.Extensions
             string className
         )
         {
-            //MetadataReference[] metadataReferences = AppDomain.CurrentDomain
-            //    .GetAssemblies()
-            //    .Where(i => i.IsDynamic == false && string.IsNullOrEmpty(i.Location) == false)
-            //    .Select(i => MetadataReference.CreateFromFile(i.Location))
-            //    .ToArray();
-
             string core = Encoding.ASCII.GetString(codeBinary);
 
             Stopwatch stopwatch = Stopwatch.StartNew();
@@ -58,27 +57,13 @@ namespace AutoMigrations.Extensions
 
             stopwatch.Stop();
 
-            //CSharpCompilation compilation = CSharpCompilation
-            //    .Create(nameSpace)
-            //    .WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            //    .AddReferences(metadataReferences)
-            //    .AddSyntaxTrees(SyntaxFactory.ParseSyntaxTree(core));
+            Assembly assembly = Assembly.Load(stream.GetBuffer());
 
-            //using MemoryStream stream = new MemoryStream();
+            var typeName = $"{nameSpace}.{className}";
 
-            //Microsoft.CodeAnalysis.Emit.EmitResult compileResult = compilation.Emit(stream);
-
-            //if (compileResult.Success)
+            if (assembly.CreateInstance(typeName) is ModelSnapshot modelSnapshot)
             {
-                Assembly assembly = Assembly.Load(stream.GetBuffer());
-
-                if (
-                    assembly.CreateInstance(nameSpace + "." + className)
-                    is ModelSnapshot modelSnapshot
-                )
-                {
-                    return modelSnapshot;
-                }
+                return modelSnapshot;
             }
 
             return null;
@@ -113,6 +98,7 @@ namespace AutoMigrations.Extensions
                 .Build(context)
                 .GetService<IMigrationsCodeGenerator>()!
                 .GenerateSnapshot(nameSpace, context.GetType(), className, mode);
+
             byte[] codeBuffer = Encoding.ASCII.GetBytes(code);
 
             return codeBuffer;
