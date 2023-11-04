@@ -1,12 +1,4 @@
-# AutoMigrations
-
-entity fromework core auto migrate
-
-### demo
-
-``` CSharp code
-
-using AutoMigrations;
+﻿using AutoMigrations;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -90,6 +82,3 @@ namespace ConsoleApp1
         public DateTime CreateTime1 { get; set; } = DateTime.Now;
     }
 }
-
-
-```
