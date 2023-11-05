@@ -70,31 +70,16 @@ namespace AutoMigrations.Extensions
                 return executeResult;
             }
 
-            DbConnection connection = context.Database.GetDbConnection();
-
-            try
+            foreach (var commandText in commandTexts)
             {
-                connection.Open();
-
-                using DbCommand executeCommand = connection.CreateCommand();
-
-                foreach (string commandText in commandTexts)
+                try
                 {
-                    executeCommand.CommandText = commandText;
-
-                    try
-                    {
-                        executeResult += executeCommand.ExecuteNonQuery();
-                    }
-                    catch
-                    {
-                        //ignore
-                    }
+                    executeResult += context.Database.ExecuteSqlRaw(commandText);
                 }
-            }
-            finally
-            {
-                connection.Close();
+                catch (Exception)
+                {
+                    //ignore
+                }
             }
 
             return executeResult;

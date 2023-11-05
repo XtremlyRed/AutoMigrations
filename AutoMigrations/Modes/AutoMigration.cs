@@ -36,7 +36,7 @@ namespace AutoMigrations.Modes
 
         [Column(Order = 2)]
         [Required]
-        [StringLength(64)]
+        [StringLength(128)]
         public string? Key { get; set; }
 
         [Column(Order = 3)]

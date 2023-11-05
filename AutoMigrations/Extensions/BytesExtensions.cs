@@ -10,9 +10,9 @@ namespace AutoMigrations.Extensions
     {
         public static string Encrypt(this byte[] bytes)
         {
-            using var md5 = MD5.Create();
+            using var sha256 = SHA256.Create();
 
-            var buffer = md5.ComputeHash(bytes);
+            var buffer = sha256.ComputeHash(bytes);
 
             string hash = BitConverter.ToString(buffer).Replace("-", "").ToLower();
 

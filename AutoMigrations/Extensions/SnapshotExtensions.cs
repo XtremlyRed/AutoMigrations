@@ -53,9 +53,18 @@ namespace AutoMigrations.Extensions
 
             var typeName = $"{nameSpace}.{className}";
 
-            if (assembly.CreateInstance(typeName) is ModelSnapshot modelSnapshot)
+            try
             {
-                return modelSnapshot;
+                if (assembly.CreateInstance(typeName) is ModelSnapshot modelSnapshot)
+                {
+                    return modelSnapshot;
+                }
+            }
+            catch
+            {
+                throw new InvalidOperationException(
+                    "current migrated version dependency cannot be matched"
+                );
             }
 
             return null;

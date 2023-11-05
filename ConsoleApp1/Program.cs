@@ -48,6 +48,8 @@ public class ProgramDbContext : DbContext
 
         var context = provider.GetRequiredService<ProgramDbContext>();
 
+        var sc = context.Database.GenerateCreateScript();
+
         context.AutoMigrate(assembly, context.dbContextOptions);
 
         context.TestModels.Add(new TestModel());
