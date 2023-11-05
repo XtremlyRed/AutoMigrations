@@ -17,50 +17,55 @@ namespace AutoMigrations
         /// <summary>
         /// auto migrate <see cref="DbContext"/>
         /// </summary>
-        /// <param name="context">the current dbcontext  for migration</param>
+        /// <param name="dbContext">the current dbcontext  for migration</param>
         /// <param name="migrationsAssembly">dbcontext assembly</param>
-        /// <param name="autoMigrateName">A unique name that corresponds one-to-one to dbcontext</param>
+        /// <param name="dbContextOptions"><paramref name="dbContext"/> DbContextOptions </param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public static void AutoMigrate(
-            this DbContext context,
+            this DbContext dbContext,
             Assembly migrationsAssembly,
-            string autoMigrateName
+            DbContextOptions? dbContextOptions = null
         )
         {
-            if (context is null)
+            if (dbContext is null)
             {
-                throw new ArgumentNullException(nameof(context));
+                throw new ArgumentNullException(nameof(dbContext));
             }
             if (migrationsAssembly is null)
             {
                 throw new ArgumentNullException(nameof(migrationsAssembly));
             }
-            if (string.IsNullOrWhiteSpace(autoMigrateName))
-            {
-                throw new ArgumentException(nameof(autoMigrateName));
-            }
 
-            SnapshotExtensions.CompilationAccelerator();
+            var contextType = dbContext.GetType();
 
-            context.BindVerify(autoMigrateName);
+            var autoMigrateName = $"{contextType.Namespace}.{contextType.Name} - Migrations";
 
-            using AutoMigrateContext autoMigrateContext = new AutoMigrateContext(context);
+            using AutoMigrateContext autoMigrateContext = new AutoMigrateContext(
+                dbContext,
+                dbContextOptions
+            );
 
             Modes.AutoMigration? migration = autoMigrateContext.GetAutoMigration(autoMigrateName);
 
             string @namespace = $"{migrationsAssembly.GetName().Name}.Migrations";
-            string className = "AutoMigrate_Snapshot";
+            string className = $"{dbContext.GetType().Name}_AutoMigrate_Snapshot";
             bool hasChanged = false;
             ModelSnapshot? modelSnapshot = null;
 
             if (migration != null)
             {
-                ModelSnapshot? sbapshot = context.CreateSnapshot(
-                    migration.Migrations!,
-                    @namespace,
-                    className
-                );
+                if (migration.Migrations!.Verify(migration.Key!) == false)
+                {
+                    throw new InvalidOperationException(
+                        "snapshot has been abnormally modified and cannot be migrated"
+                    );
+                }
+
+                ModelSnapshot? sbapshot = null;
+
+                sbapshot = dbContext.CreateSnapshot(migration.Migrations!, @namespace, className);
 
                 if (sbapshot != null && sbapshot.Model != null)
                 {
@@ -68,17 +73,27 @@ namespace AutoMigrations
                 }
             }
 
-            context.Database.EnsureCreated();
-            hasChanged = context.AutoMigrationing(modelSnapshot);
+            hasChanged = dbContext.ExecuteMigrate(modelSnapshot);
 
             if (hasChanged == false)
             {
                 return;
             }
 
-            byte[] codeBuffer = context.CreateSnapshotBuffer(@namespace, className);
+            string code = dbContext.CreateSnapshotBuffer(@namespace, className);
 
-            autoMigrateContext.AutoMigrations!.Add(new AutoMigration(codeBuffer, autoMigrateName));
+            if (code is null)
+            {
+                return;
+            }
+
+            using MemoryStream stream = RoslynCompile.Compile(code, @namespace);
+
+            byte[] buffer = stream.ToArray();
+
+            autoMigrateContext.AutoMigrations!.Add(
+                new AutoMigration(buffer, autoMigrateName, buffer.Encrypt())
+            );
 
             autoMigrateContext.SaveChanges();
         }
@@ -86,31 +101,26 @@ namespace AutoMigrations
         /// <summary>
         /// auto migrate <see cref="DbContext"/>
         /// </summary>
-        /// <param name="context">the current dbcontext  for migration</param>
+        /// <param name="dbContext">the current dbcontext  for migration</param>
         /// <param name="migrationsAssembly">dbcontext assembly</param>
-        /// <param name="autoMigrateName">A unique name that corresponds one-to-one to dbcontext</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         public static async Task AutoMigrateAsync(
-            this DbContext context,
+            this DbContext dbContext,
             Assembly migrationsAssembly,
-            string autoMigrateName
+            DbContextOptions? dbContextOptions = null
         )
         {
-            if (context is null)
+            if (dbContext is null)
             {
-                throw new ArgumentNullException(nameof(context));
+                throw new ArgumentNullException(nameof(dbContext));
             }
             if (migrationsAssembly is null)
             {
                 throw new ArgumentNullException(nameof(migrationsAssembly));
             }
-            if (string.IsNullOrWhiteSpace(autoMigrateName))
-            {
-                throw new ArgumentException(nameof(autoMigrateName));
-            }
 
-            await Task.Run(() => AutoMigrate(context, migrationsAssembly, autoMigrateName));
+            await Task.Run(() => AutoMigrate(dbContext, migrationsAssembly, dbContextOptions));
         }
     }
 }

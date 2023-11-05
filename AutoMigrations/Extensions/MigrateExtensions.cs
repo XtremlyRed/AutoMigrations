@@ -10,7 +10,7 @@ namespace AutoMigrations.Extensions
 {
     internal static class MigrateExtensions
     {
-        public static bool AutoMigrationing(this DbContext context, ModelSnapshot? modelSnapshot)
+        public static bool ExecuteMigrate(this DbContext context, ModelSnapshot? modelSnapshot)
         {
             IMigrationsModelDiffer modelDiffer =
                 context.Database.GetService<IMigrationsModelDiffer>();
@@ -59,6 +59,8 @@ namespace AutoMigrations.Extensions
 
             //other migrate
             List<MigrationOperation> migrations = new();
+
+            var types = operations.Select(i => i.GetType()).ToArray();
 
             foreach (MigrationOperation operation in operations)
             {

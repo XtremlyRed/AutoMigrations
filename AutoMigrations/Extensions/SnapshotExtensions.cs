@@ -44,20 +44,12 @@ namespace AutoMigrations.Extensions
 
         public static ModelSnapshot? CreateSnapshot(
             this DbContext _,
-            byte[] codeBinary,
+            byte[] assemblyBuffer,
             string nameSpace,
             string className
         )
         {
-            string core = Encoding.ASCII.GetString(codeBinary);
-
-            Stopwatch stopwatch = Stopwatch.StartNew();
-
-            using MemoryStream stream = RoslynCompile.Compile(core, nameSpace);
-
-            stopwatch.Stop();
-
-            Assembly assembly = Assembly.Load(stream.GetBuffer());
+            Assembly assembly = Assembly.Load(assemblyBuffer);
 
             var typeName = $"{nameSpace}.{className}";
 
@@ -69,7 +61,7 @@ namespace AutoMigrations.Extensions
             return null;
         }
 
-        public static byte[] CreateSnapshotBuffer(
+        public static string CreateSnapshotBuffer(
             this DbContext context,
             string nameSpace,
             string className
@@ -91,17 +83,12 @@ namespace AutoMigrations.Extensions
                 new string[0]
             );
 
-            //model SnapshotNamespace:
-            //add a nameplace to the dynamically generated class (must be under the same named control as the current code)
-            //modelSnapshotName: Name of the dynamically generated class
             string code = builder
                 .Build(context)
                 .GetService<IMigrationsCodeGenerator>()!
                 .GenerateSnapshot(nameSpace, context.GetType(), className, mode);
 
-            byte[] codeBuffer = Encoding.ASCII.GetBytes(code);
-
-            return codeBuffer;
+            return code;
         }
     }
 }

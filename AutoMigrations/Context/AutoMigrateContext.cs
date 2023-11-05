@@ -1,7 +1,9 @@
-﻿using AutoMigrations.Modes;
+﻿using AutoMigrations.Extensions;
+using AutoMigrations.Modes;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 
 using System;
 using System.Collections.Generic;
@@ -21,9 +23,13 @@ namespace AutoMigrations.Context
         /// </summary>
         /// <param name="otherContext"></param>
         /// <returns></returns>
-        private static DbContextOptions OptsBuilder(DbContext otherContext)
+        private static DbContextOptions OptsBuilder(
+            DbContext otherContext,
+            DbContextOptions? dbContextOptions = null
+        )
         {
-            var existOpts = otherContext.Database.GetService<IDbContextOptions>();
+            var existOpts =
+                dbContextOptions ?? otherContext.Database.GetService<IDbContextOptions>();
 
             var optionsBuilder = new DbContextOptionsBuilder<AutoMigrateContext>();
 
@@ -41,8 +47,8 @@ namespace AutoMigrations.Context
         /// create from user context  <see cref="DbContextOptions"/>
         /// </summary>
         /// <param name="otherContext"></param>
-        public AutoMigrateContext(DbContext otherContext)
-            : base(OptsBuilder(otherContext)) { }
+        public AutoMigrateContext(DbContext otherContext, DbContextOptions? dbContextOptions = null)
+            : base(OptsBuilder(otherContext, dbContextOptions)) { }
 
         /// <summary>
         /// migration records
@@ -56,14 +62,22 @@ namespace AutoMigrations.Context
         /// <returns></returns>
         public AutoMigration? GetAutoMigration(string autoMigrateName)
         {
-            this.Database.EnsureCreated();
+            Database.EnsureCreated();
 
-            var exist = AutoMigrations!
-                .Where(i => i.Name == autoMigrateName)
-                .OrderByDescending(i => i.MigrationTime)
-                .FirstOrDefault();
+            try
+            {
+                var exist = AutoMigrations!
+                    .Where(i => i.Name == autoMigrateName)
+                    .OrderByDescending(i => i.MigrationTime)
+                    .FirstOrDefault();
 
-            return exist;
+                return exist;
+            }
+            catch (Exception)
+            {
+                this.ExecuteMigrate(null);
+                return null;
+            }
         }
     }
 }

@@ -82,7 +82,14 @@ namespace AutoMigrations.Extensions
                 {
                     executeCommand.CommandText = commandText;
 
-                    executeResult += executeCommand.ExecuteNonQuery();
+                    try
+                    {
+                        executeResult += executeCommand.ExecuteNonQuery();
+                    }
+                    catch
+                    {
+                        //ignore
+                    }
                 }
             }
             finally

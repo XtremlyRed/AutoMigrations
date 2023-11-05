@@ -1,97 +1,105 @@
 ﻿using AutoMigrations;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 
-namespace ConsoleApp1
+namespace ConsoleApp1;
+
+public class ProgramDbContext : DbContext
 {
-    public class Program : DbContext
+    DbContextOptions dbContextOptions;
+
+    public ProgramDbContext(DbContextOptions<ProgramDbContext> options)
+        : base(options)
     {
-        public Program(DbContextOptions<Program> options)
-            : base(options) { }
+        this.dbContextOptions = options;
+    }
 
-        static void Main(string[] args)
-        {
-            Console.WriteLine("Hello, World!");
+    static void Main(string[] args)
+    {
+        Console.WriteLine("Hello, World!");
 
-            var services = new ServiceCollection();
+        var services = new ServiceCollection();
 
-            var assembly = Assembly.GetExecutingAssembly();
+        var assembly = typeof(ProgramDbContext).Assembly;
 
-            services.AddDbContextPool<Program>(
-                options =>
-                    options.UseSqlite(
-                        $"Data Source={Path.Combine(Environment.CurrentDirectory, "sqlite.db")}",
-                        //                    options.UseMySql(
-                        //                        "Data Source=127.0.0.1;Port=3306;Database=Program;User ID=root;Password=myroot;Charset=utf8; SslMode=none;Min pool size=1",
-                        //#if !NET48
-                        //                        ServerVersion.Create(
-                        //                            new Version(),
-                        //                            Pomelo.EntityFrameworkCore.MySql.Infrastructure.ServerType.MySql
-                        //                        ),
-                        //#endif
-
-                        b => b.MigrationsAssembly(assembly.GetName().Name)
+        services.AddDbContextPool<ProgramDbContext>(
+            options =>
+                //    options.UseSqlite(
+                //       $"Data Source={Path.Combine(Environment.CurrentDirectory, "sqlite.db")}",
+                options.UseMySql(
+                    "Data Source=127.0.0.1;Port=3306;Database=Program;User ID=root;Password=myroot;Charset=utf8; SslMode=none;Min pool size=1",
+#if !NET48
+                    ServerVersion.Create(
+                        new Version(),
+                        Pomelo.EntityFrameworkCore.MySql.Infrastructure.ServerType.MySql
                     ),
-                200
-            );
+#endif
 
-            var provider = services.BuildServiceProvider();
+                    b => b.MigrationsAssembly(assembly.GetName().Name)
+                ),
+            64
+        );
 
-            var context = provider.GetRequiredService<Program>();
+        var provider = services.BuildServiceProvider();
 
-            // autoMigrateName: a unique name that corresponds one-to-one to dbcontext
-            context.AutoMigrate(assembly, "{8FE1740D-28FB-4555-B74A-D2B7A09E16A0}");
+        var context = provider.GetRequiredService<ProgramDbContext>();
 
-            context.TestModels.Add(new TestModel());
+        context.AutoMigrate(assembly, context.dbContextOptions);
 
-            context.SaveChanges();
+        context.TestModels.Add(new TestModel());
 
-            Console.ReadKey();
-        }
+        context.SaveChanges();
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        Console.ReadKey();
+    }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        if (modelBuilder.Model.FindEntityType(typeof(TestModel)) is null)
         {
-            if (modelBuilder.Model.FindEntityType(typeof(TestModel)) is null)
-            {
-                modelBuilder.Model.AddEntityType(typeof(TestModel));
-            }
-
-            modelBuilder.Entity<TestModel>(b =>
-            {
-                b.ToTable("TestModel");
-                b.HasKey(e => e.Id);
-                b.Property(e => e.Id).ValueGeneratedOnAdd();
-                b.Property(e => e.CreateTime222).IsRequired();
-            });
-
-            base.OnModelCreating(modelBuilder);
+            modelBuilder.Model.AddEntityType(typeof(TestModel));
         }
 
-        public virtual DbSet<TestModel2> TestModel2s { get; set; }
-        public virtual DbSet<TestModel> TestModels { get; set; }
+        modelBuilder.Entity<TestModel>(b =>
+        {
+            b.ToTable("TestModel");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.Id).ValueGeneratedOnAdd();
+            b.Property(e => e.CreateTime222333).IsRequired();
+            b.Property(e => e.CreateTime222).IsRequired();
+        });
+
+        base.OnModelCreating(modelBuilder);
     }
 
-    public class TestModel
-    {
-        [Key]
-        public int Id { get; set; }
+    public virtual DbSet<TestModel2> TestModel2s { get; set; }
+    public virtual DbSet<TestModel> TestModels { get; set; }
+}
 
-        public DateTime CreateTime222 { get; set; } = DateTime.Now;
+public class TestModel
+{
+    [Key]
+    public int Id { get; set; }
+    public DateTime CreateTime222333 { get; set; } = DateTime.Now;
+    public DateTime CreateTime222 { get; set; } = DateTime.Now;
 
-        public DateTime CreateTime { get; set; } = DateTime.Now;
-        public DateTime CreateTime1 { get; set; } = DateTime.Now;
-    }
+    public DateTime CreateTime { get; set; } = DateTime.Now;
+    public DateTime CreateTime1 { get; set; } = DateTime.Now;
+}
 
-    public class TestModel2
-    {
-        [Key]
-        public int Id { get; set; }
-        public DateTime CreateTime { get; set; } = DateTime.Now;
-        public DateTime CreateTime1 { get; set; } = DateTime.Now;
-    }
+public class TestModel2
+{
+    [Key]
+    public int Id { get; set; }
+    public DateTime CreateTime { get; set; } = DateTime.Now;
+    public DateTime CreateTime1 { get; set; } = DateTime.Now;
 }
