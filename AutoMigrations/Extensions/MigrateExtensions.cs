@@ -4,13 +4,14 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
-using System.IO;
-
 namespace AutoMigrations.Extensions
 {
     internal static class MigrateExtensions
     {
-        public static bool ExecuteMigrate(this DbContext context, ModelSnapshot? modelSnapshot)
+        public static IReadOnlyList<MigrationOperation> GetDifferences(
+            this DbContext context,
+            ModelSnapshot? modelSnapshot
+        )
         {
             IMigrationsModelDiffer modelDiffer =
                 context.Database.GetService<IMigrationsModelDiffer>();
@@ -27,21 +28,18 @@ namespace AutoMigrations.Extensions
 
 #endif
 
+            IReadOnlyList<MigrationOperation> opts = null!;
+
             // has changed
             if (modelDiffer.HasDifferences(codeModel, finaMode) == false)
             {
-                return false;
+                return opts;
             }
-
-            IReadOnlyList<MigrationOperation> opts = null!;
 
             //get migration operation
             opts = modelDiffer.GetDifferences(codeModel, finaMode);
 
-            //migrate
-            Migrating(context, opts);
-
-            return true;
+            return opts;
         }
 
         /// <summary>
@@ -49,33 +47,39 @@ namespace AutoMigrations.Extensions
         /// </summary>
         /// <param name="operations"></param>
         /// <param name="context"></param>
-        private static void Migrating(
-            DbContext context,
-            IReadOnlyList<MigrationOperation> operations
+        public static int ExecuteMigrating(
+            this DbContext context,
+            IReadOnlyList<MigrationOperation> operations,
+            bool removeColumnWhenDrop = false
         )
         {
+            if (operations is null || operations.Count == 0)
+            {
+                return -1;
+            }
+
             //migrate column name
-            List<string> columnNames = new();
+            List<string> allCommandTexts = new();
 
             //other migrate
             List<MigrationOperation> migrations = new();
 
-            var types = operations.Select(i => i.GetType()).ToArray();
+            Type[] types = operations.Select(i => i.GetType()).ToArray();
 
             foreach (MigrationOperation operation in operations)
             {
                 if (operation is RenameColumnOperation renameColumn)
                 {
-                    columnNames.Add(context.GetRenameSQL(renameColumn));
+                    allCommandTexts.Add(context.GetRenameSQL(renameColumn));
+                    continue;
+                }
+
+                if (operation is DropColumnOperation dropColumn && removeColumnWhenDrop == false)
+                {
                     continue;
                 }
 
                 migrations.Add(operation);
-            }
-
-            if (columnNames.Count > 0)
-            {
-                context.ExecuteSQL(columnNames);
             }
 
             //other migrate
@@ -88,19 +92,25 @@ namespace AutoMigrations.Extensions
 #elif NETSTANDARD2_0
 
                 IModel mode = context.Model;
-
 #endif
 
                 //generate sql scripts
-                var commandTexts = context.Database
+                string[] commandTexts = context.Database
                     .GetService<IMigrationsSqlGenerator>()
                     .Generate(migrations, mode)
                     .Select(p => p.CommandText)
                     .ToArray();
 
-                //execute sql scripts
-                int changeCount = context.ExecuteSQL(commandTexts);
+                allCommandTexts.AddRange(commandTexts);
             }
+            int changeCount = 0;
+            if (allCommandTexts.Count > 0)
+            {
+                //execute sql scripts
+                changeCount = context.ExecuteSQL(allCommandTexts);
+            }
+
+            return changeCount;
         }
     }
 }

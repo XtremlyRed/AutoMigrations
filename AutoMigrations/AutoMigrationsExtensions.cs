@@ -20,13 +20,15 @@ namespace AutoMigrations
         /// <param name="dbContext">the current dbcontext  for migration</param>
         /// <param name="migrationsAssembly">dbcontext assembly</param>
         /// <param name="dbContextOptions"><paramref name="dbContext"/> DbContextOptions </param>
+        /// <param name="removeColumnWhenDrop">Remove database columns when deleting entity attributes,true : remove, otherwise not</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
         public static void AutoMigrate(
             this DbContext dbContext,
             Assembly migrationsAssembly,
-            DbContextOptions? dbContextOptions = null
+            DbContextOptions? dbContextOptions = null,
+            bool removeColumnWhenDrop = false
         )
         {
             if (dbContext is null)
@@ -50,8 +52,9 @@ namespace AutoMigrations
             Modes.AutoMigration? migration = autoMigrateContext.GetAutoMigration(autoMigrateName);
 
             string @namespace = $"{migrationsAssembly.GetName().Name}.Migrations";
+
             string className = $"{dbContext.GetType().Name}_AutoMigrate_Snapshot";
-            bool hasChanged = false;
+
             ModelSnapshot? modelSnapshot = null;
 
             if (migration != null)
@@ -73,12 +76,14 @@ namespace AutoMigrations
                 }
             }
 
-            hasChanged = dbContext.ExecuteMigrate(modelSnapshot);
+            var opts = dbContext.GetDifferences(modelSnapshot);
 
-            if (hasChanged == false)
+            if (opts is null || opts.Count == 0)
             {
                 return;
             }
+
+            dbContext.ExecuteMigrating(opts, removeColumnWhenDrop);
 
             string code = dbContext.CreateSnapshotBuffer(@namespace, className);
 

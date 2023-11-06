@@ -62,7 +62,7 @@ namespace AutoMigrations.Context
         /// <returns></returns>
         public AutoMigration? GetAutoMigration(string autoMigrateName)
         {
-            Database.EnsureCreated();
+            // Database.EnsureCreated();
 
             try
             {
@@ -75,7 +75,8 @@ namespace AutoMigrations.Context
             }
             catch (Exception)
             {
-                this.ExecuteMigrate(null);
+                var opts = this.GetDifferences(null);
+                this.ExecuteMigrating(opts);
                 return null;
             }
         }

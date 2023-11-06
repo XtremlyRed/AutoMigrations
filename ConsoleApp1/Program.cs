@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Reflection;
 
 namespace ConsoleApp1;
@@ -28,16 +29,16 @@ public class ProgramDbContext : DbContext
 
         services.AddDbContextPool<ProgramDbContext>(
             options =>
-                //    options.UseSqlite(
-                //       $"Data Source={Path.Combine(Environment.CurrentDirectory, "sqlite.db")}",
-                options.UseMySql(
-                    "Data Source=127.0.0.1;Port=3306;Database=Program;User ID=root;Password=myroot;Charset=utf8; SslMode=none;Min pool size=1",
-#if !NET48
-                    ServerVersion.Create(
-                        new Version(),
-                        Pomelo.EntityFrameworkCore.MySql.Infrastructure.ServerType.MySql
-                    ),
-#endif
+                options.UseSqlite(
+                    $"Data Source={Path.Combine(Environment.CurrentDirectory, "sqlite.db")}",
+                    //                options.UseMySql(
+                    //                    "Data Source=127.0.0.1;Port=3306;Database=Program;User ID=root;Password=myroot;Charset=utf8; SslMode=none;Min pool size=1",
+                    //#if !NET48
+                    //                    ServerVersion.Create(
+                    //                        new Version(),
+                    //                        Pomelo.EntityFrameworkCore.MySql.Infrastructure.ServerType.MySql
+                    //                    ),
+                    //#endif
 
                     b => b.MigrationsAssembly(assembly.GetName().Name)
                 ),
@@ -46,41 +47,25 @@ public class ProgramDbContext : DbContext
 
         var provider = services.BuildServiceProvider();
 
-        var context = provider.GetRequiredService<ProgramDbContext>();
+        using var context = provider.GetRequiredService<ProgramDbContext>();
+        var stop = Stopwatch.StartNew();
+        context.Database.EnsureCreated();
+        stop.Stop();
+        Console.WriteLine($"initialize database :{stop.ElapsedMilliseconds} ms");
 
-        var sc = context.Database.GenerateCreateScript();
+        stop.Reset();
+        stop.Restart();
 
         context.AutoMigrate(assembly, context.dbContextOptions);
+
+        stop.Stop();
+        Console.WriteLine($"auto migrate :{stop.ElapsedMilliseconds} ms");
 
         context.TestModels.Add(new TestModel());
 
         context.SaveChanges();
 
         Console.ReadKey();
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        base.OnConfiguring(optionsBuilder);
-    }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        if (modelBuilder.Model.FindEntityType(typeof(TestModel)) is null)
-        {
-            modelBuilder.Model.AddEntityType(typeof(TestModel));
-        }
-
-        modelBuilder.Entity<TestModel>(b =>
-        {
-            b.ToTable("TestModel");
-            b.HasKey(e => e.Id);
-            b.Property(e => e.Id).ValueGeneratedOnAdd();
-            b.Property(e => e.CreateTime222333).IsRequired();
-            b.Property(e => e.CreateTime222).IsRequired();
-        });
-
-        base.OnModelCreating(modelBuilder);
     }
 
     public virtual DbSet<TestModel2> TestModel2s { get; set; }
@@ -93,9 +78,10 @@ public class TestModel
     public int Id { get; set; }
     public DateTime CreateTime222333 { get; set; } = DateTime.Now;
     public DateTime CreateTime222 { get; set; } = DateTime.Now;
-
-    public DateTime CreateTime { get; set; } = DateTime.Now;
-    public DateTime CreateTime1 { get; set; } = DateTime.Now;
+    //public DateTime CreateTime2222333 { get; set; } = DateTime.Now;
+    //public DateTime CreateTime2222 { get; set; } = DateTime.Now;
+    //public DateTime CreateTime { get; set; } = DateTime.Now;
+    //public DateTime CreateTime1 { get; set; } = DateTime.Now;
 }
 
 public class TestModel2
