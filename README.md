@@ -1,6 +1,6 @@
 # AutoMigrations
 
-entity fromework core auto migrate
+entity framework core auto migrate
 
 ### demo
 
